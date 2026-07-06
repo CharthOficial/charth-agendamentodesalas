@@ -1,0 +1,245 @@
+import { query, mutation } from "./_generated/server";
+import { v } from "convex/values";
+
+function parseTime(t: string): number {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
+
+// Lista todos os agendamentos (painel admin)
+export const listar = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db.query("agendamentos").collect();
+  },
+});
+
+// Lista agendamentos filtrados por data
+export const listarPorData = query({
+  args: { data: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("agendamentos")
+      .withIndex("by_data", (q) => q.eq("data", args.data))
+      .collect();
+  },
+});
+
+// Lista agendamentos de uma sala numa data (usado para disponibilidade)
+export const listarPorSalaData = query({
+  args: { salaId: v.id("salas"), data: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("agendamentos")
+      .withIndex("by_sala_data", (q) =>
+        q.eq("salaId", args.salaId).eq("data", args.data)
+      )
+      .collect();
+  },
+});
+
+// Verifica conflito de horário para uma sala/data/intervalo
+async function verificarConflito(
+  ctx: any,
+  salaId: any,
+  data: string,
+  horarioInicio: string,
+  horarioFim: string,
+  excludeId?: any
+) {
+  const s = parseTime(horarioInicio);
+  const e = parseTime(horarioFim);
+
+  // Checa agendamentos existentes
+  const agendamentos = await ctx.db
+    .query("agendamentos")
+    .withIndex("by_sala_data", (q: any) => q.eq("salaId", salaId).eq("data", data))
+    .collect();
+
+  for (const a of agendamentos) {
+    if (excludeId && a._id === excludeId) continue;
+    if (a.status === "cancelado") continue;
+    const as = parseTime(a.horarioInicio);
+    const ae = parseTime(a.horarioFim);
+    if (s < ae && e > as) {
+      return { tipo: "agendamento" as const, item: a };
+    }
+  }
+
+  // Checa bloqueios
+  const bloqueios = await ctx.db
+    .query("bloqueiosSala")
+    .withIndex("by_sala_data", (q: any) => q.eq("salaId", salaId).eq("data", data))
+    .collect();
+
+  for (const b of bloqueios) {
+    const bs = parseTime(b.horarioInicio);
+    const be = parseTime(b.horarioFim);
+    if (s < be && e > bs) {
+      return { tipo: "bloqueio" as const, item: b };
+    }
+  }
+
+  return null;
+}
+
+// Cria um novo agendamento (com todas as validações de negócio)
+export const criar = mutation({
+  args: {
+    salaId: v.id("salas"),
+    nomeAgendamento: v.string(),
+    responsavelNome: v.string(),
+    responsavelSetor: v.string(),
+    data: v.string(),
+    horarioInicio: v.string(),
+    horarioFim: v.string(),
+    emailsParticipantes: v.optional(v.string()),
+    descricao: v.optional(v.string()),
+    criadoPorTipo: v.union(v.literal("publico"), v.literal("admin"), v.literal("gestor")),
+    criadoPorUsuarioId: v.optional(v.id("usuariosAdmin")),
+  },
+  handler: async (ctx, args) => {
+    // Validação de horário
+    const inicio = parseTime(args.horarioInicio);
+    const fim = parseTime(args.horarioFim);
+    if (fim <= inicio) {
+      throw new Error("O horário final deve ser após o horário inicial.");
+    }
+
+    // Validação de limite por perfil
+    const duracaoHoras = (fim - inicio) / 60;
+    const limites: Record<string, number> = {
+      publico: 1,
+      gestor: 3,
+      admin: Infinity,
+    };
+    const limite = limites[args.criadoPorTipo];
+    if (duracaoHoras > limite) {
+      const labels: Record<string, string> = {
+        publico: "Usuários comuns podem criar agendamentos de no máximo 1 hora.",
+        gestor: "Gestores podem criar agendamentos de no máximo 3 horas.",
+        admin: "",
+      };
+      throw new Error(labels[args.criadoPorTipo]);
+    }
+
+    // Validação de conflito
+    const conflito = await verificarConflito(
+      ctx,
+      args.salaId,
+      args.data,
+      args.horarioInicio,
+      args.horarioFim
+    );
+    if (conflito) {
+      if (conflito.tipo === "bloqueio") {
+        throw new Error(
+          `Esta sala está bloqueada neste horário. Motivo: ${conflito.item.motivo || "não informado"}`
+        );
+      }
+      throw new Error(
+        `Conflito de horário: já existe o agendamento "${conflito.item.nomeAgendamento}" das ${conflito.item.horarioInicio} às ${conflito.item.horarioFim}.`
+      );
+    }
+
+    // Cria o agendamento — em produção, o evento do Google Agenda seria
+    // criado aqui via Convex Action (chamada HTTP externa)
+    const id = await ctx.db.insert("agendamentos", {
+      salaId: args.salaId,
+      nomeAgendamento: args.nomeAgendamento,
+      responsavelNome: args.responsavelNome,
+      responsavelSetor: args.responsavelSetor,
+      data: args.data,
+      horarioInicio: args.horarioInicio,
+      horarioFim: args.horarioFim,
+      emailsParticipantes: args.emailsParticipantes,
+      descricao: args.descricao,
+      status: "agendado",
+      criadoPorTipo: args.criadoPorTipo,
+      criadoPorUsuarioId: args.criadoPorUsuarioId,
+      googleCalendarEventId: `evt_${Date.now()}`, // placeholder
+    });
+
+    return id;
+  },
+});
+
+// Edita um agendamento existente
+export const editar = mutation({
+  args: {
+    id: v.id("agendamentos"),
+    salaId: v.id("salas"),
+    nomeAgendamento: v.string(),
+    responsavelNome: v.string(),
+    responsavelSetor: v.string(),
+    data: v.string(),
+    horarioInicio: v.string(),
+    horarioFim: v.string(),
+    emailsParticipantes: v.optional(v.string()),
+    descricao: v.optional(v.string()),
+    perfilEditor: v.union(v.literal("admin"), v.literal("gestor")),
+    usuarioAlteracaoId: v.optional(v.id("usuariosAdmin")),
+  },
+  handler: async (ctx, args) => {
+    const inicio = parseTime(args.horarioInicio);
+    const fim = parseTime(args.horarioFim);
+    if (fim <= inicio) {
+      throw new Error("O horário final deve ser após o horário inicial.");
+    }
+
+    const duracaoHoras = (fim - inicio) / 60;
+    if (args.perfilEditor === "gestor" && duracaoHoras > 3) {
+      throw new Error("Gestores podem criar agendamentos de no máximo 3 horas.");
+    }
+
+    const conflito = await verificarConflito(
+      ctx,
+      args.salaId,
+      args.data,
+      args.horarioInicio,
+      args.horarioFim,
+      args.id
+    );
+    if (conflito) {
+      if (conflito.tipo === "bloqueio") {
+        throw new Error(
+          `Esta sala está bloqueada neste horário. Motivo: ${conflito.item.motivo || "não informado"}`
+        );
+      }
+      throw new Error(
+        `Conflito de horário: já existe o agendamento "${conflito.item.nomeAgendamento}".`
+      );
+    }
+
+    await ctx.db.patch(args.id, {
+      salaId: args.salaId,
+      nomeAgendamento: args.nomeAgendamento,
+      responsavelNome: args.responsavelNome,
+      responsavelSetor: args.responsavelSetor,
+      data: args.data,
+      horarioInicio: args.horarioInicio,
+      horarioFim: args.horarioFim,
+      emailsParticipantes: args.emailsParticipantes,
+      descricao: args.descricao,
+      usuarioAlteracaoId: args.usuarioAlteracaoId,
+    });
+  },
+});
+
+// Exclui (cancela) um agendamento — apenas Admin
+export const excluir = mutation({
+  args: {
+    id: v.id("agendamentos"),
+    usuarioId: v.id("usuariosAdmin"),
+  },
+  handler: async (ctx, args) => {
+    const usuario = await ctx.db.get(args.usuarioId);
+    if (!usuario || usuario.perfil !== "admin") {
+      throw new Error("Apenas administradores podem excluir agendamentos.");
+    }
+    await ctx.db.patch(args.id, {
+      status: "cancelado",
+      usuarioAlteracaoId: args.usuarioId,
+    });
+  },
+});
