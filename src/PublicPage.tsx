@@ -218,21 +218,27 @@ export default function PublicPage() {
     return (
       <div className="public-page">
         <Header />
-        <div className="card">
-          <div className="card-title">Selecione uma sala</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {locals.map((local) => (
-            <div key={local} style={{ marginBottom: 20 }}>
+            <div key={local} className="card" style={{ marginBottom: 0 }}>
               <div style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: "var(--text3)",
-                textTransform: "uppercase",
-                letterSpacing: "0.8px",
-                marginBottom: 10,
-                paddingBottom: 6,
-                borderBottom: "1px solid var(--border)",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: 16,
               }}>
-                📍 {local}
+                <div style={{
+                  background: "var(--accent)",
+                  borderRadius: 8,
+                  padding: "6px 14px",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#F7F0F1",
+                  fontFamily: "Sora, sans-serif",
+                  letterSpacing: "0.2px",
+                }}>
+                  {local}
+                </div>
               </div>
               <div className="avail-grid">
                 {roomCards.filter((r) => r.local === local).map((r) => (
