@@ -213,29 +213,46 @@ export default function PublicPage() {
       return { ...r, statusLabel, statusClass };
     });
 
+    const locals = [...new Set(roomCards.map((r) => r.local))];
+
     return (
       <div className="public-page">
         <Header />
         <div className="card">
           <div className="card-title">Selecione uma sala</div>
-          <div className="avail-grid">
-            {roomCards.map((r) => (
-              <div
-                key={r._id}
-                className={`avail-room ${r.statusClass}`}
-                style={{ cursor: "pointer" }}
-                onClick={() => {
-                  setSelectedRoom(r);
-                  setWeekAnchor(todayStr());
-                  setView("calendar");
-                }}
-              >
-                <div className="avail-room-name">{r.nome}</div>
-                <div className="avail-room-local">{r.local}</div>
-                <div className="avail-room-status">● {r.statusLabel}</div>
+          {locals.map((local) => (
+            <div key={local} style={{ marginBottom: 20 }}>
+              <div style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: "var(--text3)",
+                textTransform: "uppercase",
+                letterSpacing: "0.8px",
+                marginBottom: 10,
+                paddingBottom: 6,
+                borderBottom: "1px solid var(--border)",
+              }}>
+                📍 {local}
               </div>
-            ))}
-          </div>
+              <div className="avail-grid">
+                {roomCards.filter((r) => r.local === local).map((r) => (
+                  <div
+                    key={r._id}
+                    className={`avail-room ${r.statusClass}`}
+                    style={{ cursor: "pointer" }}
+                    onClick={() => {
+                      setSelectedRoom(r);
+                      setWeekAnchor(todayStr());
+                      setView("calendar");
+                    }}
+                  >
+                    <div className="avail-room-name">{r.nome}</div>
+                    <div className="avail-room-status">● {r.statusLabel}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );
