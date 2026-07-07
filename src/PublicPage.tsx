@@ -345,9 +345,16 @@ export default function PublicPage() {
         <div style={{ overflowX: "auto" }}>
           <div
             className="week-grid"
-            style={{ gridTemplateColumns: `60px repeat(7,1fr)`, minWidth: 680 }}
+            style={{ gridTemplateColumns: `60px repeat(7,1fr)`, minWidth: 560 }}
           >
-            <div style={{ background: "var(--surface2)", borderBottom: "1px solid var(--border)" }} />
+            {/* Corner cell - sticky */}
+            <div style={{
+              background: "var(--surface2)",
+              borderBottom: "1px solid var(--border)",
+              position: "sticky",
+              left: 0,
+              zIndex: 3,
+            }} />
             {weekDates.map((d) => (
               <div
                 key={d}
@@ -370,11 +377,21 @@ export default function PublicPage() {
             {slots.map((slotMin) => (
               <>
                 {slotMin % 60 === 0 ? (
-                  <div key={`label-${slotMin}`} className="week-time-label">
+                  <div key={`label-${slotMin}`} className="week-time-label" style={{
+                    position: "sticky",
+                    left: 0,
+                    zIndex: 2,
+                    background: "var(--surface)",
+                  }}>
                     {minutesToHHMM(slotMin)}
                   </div>
                 ) : (
-                  <div key={`label-${slotMin}`} className="week-time-label" />
+                  <div key={`label-${slotMin}`} className="week-time-label" style={{
+                    position: "sticky",
+                    left: 0,
+                    zIndex: 2,
+                    background: "var(--surface)",
+                  }} />
                 )}
                 {weekDates.map((d) => {
                   const info = getCellInfo(d, slotMin);

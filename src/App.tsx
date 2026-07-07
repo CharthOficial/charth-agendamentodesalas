@@ -22,22 +22,21 @@ function AppInner() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)" }}>
-      <div
-        style={{
-          position: "fixed",
-          top: 0,
-          right: 0,
-          padding: "12px 20px",
-          zIndex: 100,
-        }}
-      >
+    <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", flexDirection: "column" }}>
+      <div style={{ flex: 1, padding: "28px 20px 0" }}>
+        <PublicPage />
+      </div>
+      <div style={{
+        padding: "20px",
+        display: "flex",
+        justifyContent: "center",
+        borderTop: "1px solid var(--border)",
+        marginTop: 32,
+        background: "var(--surface)",
+      }}>
         <button className="btn btn-secondary btn-sm" onClick={() => setView("login")}>
           🔑 Acesso administrativo
         </button>
-      </div>
-      <div style={{ padding: "70px 20px 40px" }}>
-        <PublicPage />
       </div>
     </div>
   );
