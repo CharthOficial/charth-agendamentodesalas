@@ -10,6 +10,7 @@
 
 import type * as agendamentos from "../agendamentos.js";
 import type * as bloqueios from "../bloqueios.js";
+import type * as googleDirectory from "../googleDirectory.js";
 import type * as salas from "../salas.js";
 import type * as usuarios from "../usuarios.js";
 
@@ -22,6 +23,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   agendamentos: typeof agendamentos;
   bloqueios: typeof bloqueios;
+  googleDirectory: typeof googleDirectory;
   salas: typeof salas;
   usuarios: typeof usuarios;
 }>;

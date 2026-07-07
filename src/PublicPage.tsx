@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../convex/_generated/api";
+import ParticipantesInput from "./components/ParticipantesInput";
 import type { Id } from "../convex/_generated/dataModel";
 
 function todayStr(): string {
@@ -503,11 +504,10 @@ export default function PublicPage() {
                   />
                 </div>
                 <div className="form-group col-span-2">
-                  <label>E-mails dos participantes</label>
-                  <input
+                  <label>Participantes</label>
+                  <ParticipantesInput
                     value={form.emailsParticipantes}
-                    onChange={(e) => set("emailsParticipantes", e.target.value)}
-                    placeholder="email1@..., email2@..."
+                    onChange={(v) => set("emailsParticipantes", v)}
                   />
                 </div>
                 <div className="form-group col-span-2">
