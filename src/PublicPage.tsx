@@ -342,138 +342,149 @@ export default function PublicPage() {
           ⏱ Clique em um horário livre para marcar. Agendamentos via link público têm duração máxima de 1 hora.
         </div>
 
-        <div style={{ overflowX: "auto" }}>
-          <div
-            className="week-grid"
-            style={{ gridTemplateColumns: `60px repeat(7,1fr)`, minWidth: 560 }}
-          >
-            {/* Corner cell - sticky */}
-            <div style={{
-              background: "var(--surface2)",
-              borderBottom: "1px solid var(--border)",
-              position: "sticky",
-              left: 0,
-              zIndex: 3,
-            }} />
-            {weekDates.map((d) => (
-              <div
-                key={d}
-                className="week-day-header"
-                style={{ background: d === todayStr() ? "rgba(196,164,167,0.15)" : "var(--surface2)" }}
-              >
-                <div>{WEEK_DAYS[new Date(d + "T12:00:00").getDay()]}</div>
-                <div
-                  style={{
-                    fontSize: 16,
-                    fontWeight: 700,
-                    color: d === todayStr() ? "var(--accent2)" : "",
-                  }}
-                >
-                  {new Date(d + "T12:00:00").getDate()}
-                </div>
-              </div>
-            ))}
-
-            {slots.map((slotMin) => (
-              <>
-                {slotMin % 60 === 0 ? (
-                  <div key={`label-${slotMin}`} className="week-time-label" style={{
-                    position: "sticky",
-                    left: 0,
-                    zIndex: 2,
-                    background: "var(--surface)",
+        <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+          <table style={{
+            borderCollapse: "collapse",
+            width: "100%",
+            minWidth: 420,
+            tableLayout: "fixed",
+          }}>
+            <colgroup>
+              <col style={{ width: 52 }} />
+              {weekDates.map((d) => <col key={d} style={{ width: 80 }} />)}
+            </colgroup>
+            <thead>
+              <tr>
+                <th style={{
+                  position: "sticky",
+                  left: 0,
+                  zIndex: 3,
+                  background: "var(--surface2)",
+                  border: "1px solid var(--border)",
+                  width: 52,
+                  padding: 0,
+                }} />
+                {weekDates.map((d) => (
+                  <th key={d} style={{
+                    background: d === todayStr() ? "rgba(196,164,167,0.15)" : "var(--surface2)",
+                    border: "1px solid var(--border)",
+                    padding: "8px 4px",
+                    textAlign: "center",
+                    fontWeight: 600,
+                    fontSize: 12,
+                    color: "var(--text2)",
                   }}>
-                    {minutesToHHMM(slotMin)}
-                  </div>
-                ) : (
-                  <div key={`label-${slotMin}`} className="week-time-label" style={{
+                    <div>{WEEK_DAYS[new Date(d + "T12:00:00").getDay()]}</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: d === todayStr() ? "var(--accent2)" : "var(--text)" }}>
+                      {new Date(d + "T12:00:00").getDate()}
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {slots.map((slotMin) => (
+                <tr key={slotMin}>
+                  <td style={{
                     position: "sticky",
                     left: 0,
                     zIndex: 2,
                     background: "var(--surface)",
-                  }} />
-                )}
-                {weekDates.map((d) => {
-                  const info = getCellInfo(d, slotMin);
-                  const isPast =
-                    d < todayStr() || (d === todayStr() && slotMin < new Date().getHours() * 60 + new Date().getMinutes());
+                    border: "1px solid var(--border)",
+                    padding: "2px 6px",
+                    fontSize: 10.5,
+                    color: "var(--text3)",
+                    textAlign: "right",
+                    whiteSpace: "nowrap",
+                    width: 52,
+                  }}>
+                    {slotMin % 60 === 0 ? minutesToHHMM(slotMin) : ""}
+                  </td>
+                  {weekDates.map((d) => {
+                    const info = getCellInfo(d, slotMin);
+                    const isPast =
+                      d < todayStr() || (d === todayStr() && slotMin < new Date().getHours() * 60 + new Date().getMinutes());
 
-                  if (info.status === "busy" && !info.isStart) {
-                    return <div key={`${d}-${slotMin}`} className="week-cell" style={{ background: "rgba(196,105,108,0.08)" }} />;
-                  }
-                  if (info.status === "blocked" && !info.isStart) {
-                    return <div key={`${d}-${slotMin}`} className="week-cell" style={{ background: "rgba(196,164,106,0.08)" }} />;
-                  }
-
-                  if (info.status === "busy" && info.item) {
-                    const durationSlots = Math.round(
-                      (parseTime(info.item.horarioFim) - parseTime(info.item.horarioInicio)) / SLOT_MINUTES
-                    );
+                    if (info.status === "busy" && !info.isStart) {
+                      return <td key={`${d}-${slotMin}`} style={{ background: "rgba(196,105,108,0.08)", border: "1px solid var(--border)", height: 28 }} />;
+                    }
+                    if (info.status === "blocked" && !info.isStart) {
+                      return <td key={`${d}-${slotMin}`} style={{ background: "rgba(196,164,106,0.08)", border: "1px solid var(--border)", height: 28 }} />;
+                    }
+                    if (info.status === "busy" && info.item) {
+                      const durationSlots = Math.round(
+                        (parseTime(info.item.horarioFim) - parseTime(info.item.horarioInicio)) / SLOT_MINUTES
+                      );
+                      return (
+                        <td key={`${d}-${slotMin}`}
+                          rowSpan={durationSlots}
+                          style={{
+                            background: "rgba(196,105,108,0.12)",
+                            borderLeft: "3px solid var(--red)",
+                            border: "1px solid var(--border)",
+                            padding: "3px 5px",
+                            verticalAlign: "top",
+                          }}
+                          title={`${info.item.nomeAgendamento} (${info.item.horarioInicio}–${info.item.horarioFim})`}
+                        >
+                          <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--red)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {info.item.nomeAgendamento}
+                          </div>
+                          <div style={{ fontSize: 9.5, color: "var(--red)", opacity: 0.8 }}>
+                            {info.item.horarioInicio}–{info.item.horarioFim}
+                          </div>
+                        </td>
+                      );
+                    }
+                    if (info.status === "blocked" && info.item) {
+                      const durationSlots = Math.round(
+                        (parseTime(info.item.horarioFim) - parseTime(info.item.horarioInicio)) / SLOT_MINUTES
+                      );
+                      return (
+                        <td key={`${d}-${slotMin}`}
+                          rowSpan={durationSlots}
+                          style={{
+                            background: "rgba(196,164,106,0.12)",
+                            borderLeft: "3px solid var(--yellow)",
+                            border: "1px solid var(--border)",
+                            padding: "3px 5px",
+                            verticalAlign: "top",
+                          }}
+                          title={`Bloqueado: ${info.item.motivo || "sem motivo"}`}
+                        >
+                          <div style={{ fontSize: 10.5, fontWeight: 700, color: "#8A7040" }}>⛔</div>
+                        </td>
+                      );
+                    }
+                    // free slot
                     return (
-                      <div
-                        key={`${d}-${slotMin}`}
-                        className="week-cell"
+                      <td key={`${d}-${slotMin}`}
                         style={{
-                          background: "rgba(196,105,108,0.12)",
-                          borderLeft: "3px solid var(--red)",
-                          padding: "3px 6px",
-                          minHeight: durationSlots * 18,
+                          border: "1px solid var(--border)",
+                          height: 28,
+                          cursor: isPast ? "not-allowed" : "pointer",
+                          opacity: isPast ? 0.35 : 1,
+                          background: isPast ? "" : "rgba(123,175,158,0.03)",
+                          transition: "background 0.1s",
                         }}
-                        title={`${info.item.nomeAgendamento} (${info.item.horarioInicio}–${info.item.horarioFim})`}
-                      >
-                        <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--red)", overflow: "hidden" }}>
-                          {info.item.nomeAgendamento}
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  if (info.status === "blocked" && info.item) {
-                    const durationSlots = Math.round(
-                      (parseTime(info.item.horarioFim) - parseTime(info.item.horarioInicio)) / SLOT_MINUTES
-                    );
-                    return (
-                      <div
-                        key={`${d}-${slotMin}`}
-                        className="week-cell"
-                        style={{
-                          background: "rgba(196,164,106,0.12)",
-                          borderLeft: "3px solid var(--yellow)",
-                          padding: "3px 6px",
-                          minHeight: durationSlots * 18,
+                        onClick={() => {
+                          if (isPast) return;
+                          setModalSlot({
+                            data: d,
+                            horarioInicio: minutesToHHMM(slotMin),
+                            horarioFim: minutesToHHMM(slotMin + SLOT_MINUTES),
+                          });
+                          setError("");
                         }}
-                        title={`Bloqueado: ${info.item.motivo || "sem motivo"}`}
-                      >
-                        <div style={{ fontSize: 10.5, fontWeight: 700, color: "#8A7040" }}>⛔ Bloqueado</div>
-                      </div>
+                        onMouseEnter={(e) => { if (!isPast) e.currentTarget.style.background = "rgba(123,175,158,0.12)"; }}
+                        onMouseLeave={(e) => { if (!isPast) e.currentTarget.style.background = "rgba(123,175,158,0.03)"; }}
+                      />
                     );
-                  }
-
-                  // free slot
-                  return (
-                    <div
-                      key={`${d}-${slotMin}`}
-                      className="week-cell"
-                      style={{
-                        cursor: isPast ? "not-allowed" : "pointer",
-                        opacity: isPast ? 0.35 : 1,
-                        background: isPast ? "" : "rgba(123,175,158,0.04)",
-                      }}
-                      onClick={() => {
-                        if (isPast) return;
-                        setModalSlot({
-                          data: d,
-                          horarioInicio: minutesToHHMM(slotMin),
-                          horarioFim: minutesToHHMM(slotMin + SLOT_MINUTES),
-                        });
-                        setError("");
-                      }}
-                    />
-                  );
-                })}
-              </>
-            ))}
-          </div>
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
