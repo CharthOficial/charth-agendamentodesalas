@@ -26,24 +26,30 @@ function minutesToHHMM(mins: number): string {
 }
 
 function cleanErrorMessage(e: any): string {
-  // Tenta todas as fontes possíveis do Convex
-  const candidates = [
+  const sources = [
     e?.data?.message,
+    e?.data,
     e?.message,
     typeof e?.toString === "function" ? e.toString() : null,
-  ].filter(Boolean);
+  ].filter((s) => s && typeof s === "string");
 
-  for (const raw of candidates) {
-    // Extrai mensagem após "Uncaught Error:" - é onde o Convex coloca a mensagem real
-    const match = raw.match(/Uncaught Error:\s*([^\n]+)/i);
-    if (match?.[1]) {
-      return match[1]
-        .replace(/\s*at handler.*$/is, "")
-        .replace(/\s*Called by.*$/is, "")
-        .trim();
+  for (const raw of sources) {
+    // Padrão 1: "Uncaught Error: <mensagem>"
+    const m1 = raw.match(/Uncaught Error:\s*(.+?)(?:\s+at \w|\s+Called by|$)/is);
+    if (m1?.[1]?.trim()) return m1[1].trim();
+
+    // Padrão 2: "Server Error\n<mensagem>"
+    const m2 = raw.match(/Server Error\s*\n\s*(.+?)(?:\s+at \w|\s+Called by|$)/is);
+    if (m2?.[1]?.trim()) return m2[1].trim();
+
+    // Padrão 3: tudo após o último "]" do prefixo CONVEX
+    const m3 = raw.match(/\]\s+(.+?)(?:\s+at \w|\s+Called by|$)/is);
+    if (m3?.[1]?.trim() && !m3[1].includes("Server Error") && !m3[1].includes("[Request")) {
+      return m3[1].trim();
     }
-    // Se não tem prefixo técnico, usa direto
-    if (!raw.includes("[CONVEX") && !raw.includes("Server Error") && raw.length < 200) {
+
+    // Padrão 4: string limpa sem prefixos técnicos
+    if (!raw.includes("[CONVEX") && !raw.includes("Server Error") && raw.length < 300) {
       return raw.trim();
     }
   }
@@ -127,6 +133,10 @@ export default function PublicPage() {
       setModalSlot(null);
       setStep("success");
     } catch (e: any) {
+      console.log("CONVEX ERROR OBJECT:", e);
+      console.log("e.message:", e?.message);
+      console.log("e.data:", e?.data);
+      console.log("e.toString():", e?.toString?.());
       setError(cleanErrorMessage(e));
     }
   };
