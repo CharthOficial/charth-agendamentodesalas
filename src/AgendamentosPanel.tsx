@@ -4,6 +4,7 @@ import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 import { fmtDate, fmtDatetime } from "./lib/helpers";
 import { useAuth } from "./lib/auth";
+import ParticipantesInput from "./components/ParticipantesInput";
 
 function cleanErrorMessage(e: any): string {
   if (e?.data && typeof e.data === "string") return e.data;
@@ -394,11 +395,10 @@ function BookingFormModal({
           </label>
         </div>
         <div className="form-group col-span-2">
-          <label>E-mails dos participantes</label>
-          <input
+          <label>Participantes</label>
+          <ParticipantesInput
             value={form.emailsParticipantes}
-            onChange={(e) => set("emailsParticipantes", e.target.value)}
-            placeholder="email1@..., email2@..."
+            onChange={(v) => set("emailsParticipantes", v)}
           />
         </div>
         <div className="form-group col-span-2">
