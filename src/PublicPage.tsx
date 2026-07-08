@@ -26,16 +26,29 @@ function minutesToHHMM(mins: number): string {
 }
 
 function cleanErrorMessage(e: any): string {
-  const raw = e?.data?.message || e?.message || "Erro ao processar a solicitação.";
-  let msg = raw
-    .replace(/\[CONVEX[^\]]*\]\s*/gi, "")
-    .replace(/\[Request ID:[^\]]*\]\s*/gi, "")
-    .replace(/Server Error\s*/gi, "")
-    .replace(/Uncaught Error:\s*/gi, "")
-    .replace(/\s*Called by client.*$/is, "")
-    .replace(/\s*at handler.*$/is, "")
-    .trim();
-  return msg || "Erro ao processar a solicitação.";
+  // Tenta todas as fontes possíveis do Convex
+  const candidates = [
+    e?.data?.message,
+    e?.message,
+    typeof e?.toString === "function" ? e.toString() : null,
+  ].filter(Boolean);
+
+  for (const raw of candidates) {
+    // Extrai mensagem após "Uncaught Error:" - é onde o Convex coloca a mensagem real
+    const match = raw.match(/Uncaught Error:\s*([^\n]+)/i);
+    if (match?.[1]) {
+      return match[1]
+        .replace(/\s*at handler.*$/is, "")
+        .replace(/\s*Called by.*$/is, "")
+        .trim();
+    }
+    // Se não tem prefixo técnico, usa direto
+    if (!raw.includes("[CONVEX") && !raw.includes("Server Error") && raw.length < 200) {
+      return raw.trim();
+    }
+  }
+
+  return "Erro ao processar a solicitação.";
 }
 
 const WEEK_DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];

@@ -5,16 +5,24 @@ import type { Id } from "../convex/_generated/dataModel";
 import { useAuth } from "./lib/auth";
 
 function cleanErrorMessage(e: any): string {
-  const raw = e?.data?.message || e?.message || "Erro ao processar a solicitação.";
-  let msg = raw
-    .replace(/\[CONVEX[^\]]*\]\s*/gi, "")
-    .replace(/\[Request ID:[^\]]*\]\s*/gi, "")
-    .replace(/Server Error\s*/gi, "")
-    .replace(/Uncaught Error:\s*/gi, "")
-    .replace(/\s*Called by client.*$/is, "")
-    .replace(/\s*at handler.*$/is, "")
-    .trim();
-  return msg || "Erro ao processar a solicitação.";
+  const candidates = [
+    e?.data?.message,
+    e?.message,
+    typeof e?.toString === "function" ? e.toString() : null,
+  ].filter(Boolean);
+  for (const raw of candidates) {
+    const match = raw.match(/Uncaught Error:\s*([^\n]+)/i);
+    if (match?.[1]) {
+      return match[1]
+        .replace(/\s*at handler.*$/is, "")
+        .replace(/\s*Called by.*$/is, "")
+        .trim();
+    }
+    if (!raw.includes("[CONVEX") && !raw.includes("Server Error") && raw.length < 200) {
+      return raw.trim();
+    }
+  }
+  return "Erro ao processar a solicitação.";
 }
 
 export default function UsuariosPanel() {
