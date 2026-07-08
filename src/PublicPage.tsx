@@ -37,9 +37,6 @@ function cleanErrorMessage(e: any): string {
     .trim();
   return msg || "Erro ao processar a solicitação.";
 }
-    .trim();
-  return msg || "Erro ao processar a solicitação.";
-}
 
 const WEEK_DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const DAY_START = 7; // 07:00
