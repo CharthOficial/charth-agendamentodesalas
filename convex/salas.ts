@@ -1,4 +1,5 @@
-import { query, mutation } from "./_generated/server";
+import { query, mutation, action } from "./_generated/server";
+import { ConvexError } from "convex/values";
 import { v } from "convex/values";
 
 // Lista todas as salas
@@ -38,7 +39,7 @@ export const alternarAtivo = mutation({
   args: { id: v.id("salas") },
   handler: async (ctx, args) => {
     const sala = await ctx.db.get(args.id);
-    if (!sala) throw new Error("Sala não encontrada");
+    if (!sala) throw new ConvexError("Sala não encontrada");
     await ctx.db.patch(args.id, { ativo: !sala.ativo });
   },
 });

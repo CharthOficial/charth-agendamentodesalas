@@ -1,4 +1,5 @@
-import { query, mutation } from "./_generated/server";
+import { query, mutation, action } from "./_generated/server";
+import { ConvexError } from "convex/values";
 import { v } from "convex/values";
 
 function parseTime(t: string): number {
@@ -103,7 +104,7 @@ export const criar = mutation({
     const inicio = parseTime(args.horarioInicio);
     const fim = parseTime(args.horarioFim);
     if (fim <= inicio) {
-      throw new Error("O horário final deve ser após o horário inicial.");
+      throw new ConvexError("O horário final deve ser após o horário inicial.");
     }
 
     // Validação de limite por perfil
@@ -120,7 +121,7 @@ export const criar = mutation({
         gestor: "Gestores podem criar agendamentos de no máximo 3 horas.",
         admin: "",
       };
-      throw new Error(labels[args.criadoPorTipo]);
+      throw new ConvexError(labels[args.criadoPorTipo]);
     }
 
     // Validação de conflito
@@ -133,11 +134,11 @@ export const criar = mutation({
     );
     if (conflito) {
       if (conflito.tipo === "bloqueio") {
-        throw new Error(
+        throw new ConvexError(
           `Esta sala está bloqueada neste horário. Motivo: ${conflito.item.motivo || "não informado"}`
         );
       }
-      throw new Error(
+      throw new ConvexError(
         `Conflito de horário: já existe o agendamento "${conflito.item.nomeAgendamento}" das ${conflito.item.horarioInicio} às ${conflito.item.horarioFim}.`
       );
     }
@@ -184,12 +185,12 @@ export const editar = mutation({
     const inicio = parseTime(args.horarioInicio);
     const fim = parseTime(args.horarioFim);
     if (fim <= inicio) {
-      throw new Error("O horário final deve ser após o horário inicial.");
+      throw new ConvexError("O horário final deve ser após o horário inicial.");
     }
 
     const duracaoHoras = (fim - inicio) / 60;
     if (args.perfilEditor === "gestor" && duracaoHoras > 3) {
-      throw new Error("Gestores podem criar agendamentos de no máximo 3 horas.");
+      throw new ConvexError("Gestores podem criar agendamentos de no máximo 3 horas.");
     }
 
     const conflito = await verificarConflito(
@@ -202,11 +203,11 @@ export const editar = mutation({
     );
     if (conflito) {
       if (conflito.tipo === "bloqueio") {
-        throw new Error(
+        throw new ConvexError(
           `Esta sala está bloqueada neste horário. Motivo: ${conflito.item.motivo || "não informado"}`
         );
       }
-      throw new Error(
+      throw new ConvexError(
         `Conflito de horário: já existe o agendamento "${conflito.item.nomeAgendamento}".`
       );
     }
@@ -235,7 +236,7 @@ export const excluir = mutation({
   handler: async (ctx, args) => {
     const usuario = await ctx.db.get(args.usuarioId);
     if (!usuario || usuario.perfil !== "admin") {
-      throw new Error("Apenas administradores podem excluir agendamentos.");
+      throw new ConvexError("Apenas administradores podem excluir agendamentos.");
     }
     await ctx.db.patch(args.id, {
       status: "cancelado",

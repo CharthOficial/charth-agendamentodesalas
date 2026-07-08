@@ -1,4 +1,5 @@
-import { query, mutation } from "./_generated/server";
+import { query, mutation, action } from "./_generated/server";
+import { ConvexError } from "convex/values";
 import { v } from "convex/values";
 
 // ATENÇÃO: Para produção, a senha deve ser validada com hash (bcrypt)
@@ -43,7 +44,7 @@ export const criar = mutation({
       .query("usuariosAdmin")
       .withIndex("by_email", (q) => q.eq("email", args.email))
       .first();
-    if (existente) throw new Error("Este e-mail já está cadastrado.");
+    if (existente) throw new ConvexError("Este e-mail já está cadastrado.");
 
     return await ctx.db.insert("usuariosAdmin", {
       nome: args.nome,
@@ -59,7 +60,7 @@ export const alternarAtivo = mutation({
   args: { id: v.id("usuariosAdmin") },
   handler: async (ctx, args) => {
     const usuario = await ctx.db.get(args.id);
-    if (!usuario) throw new Error("Usuário não encontrado");
+    if (!usuario) throw new ConvexError("Usuário não encontrado");
     await ctx.db.patch(args.id, { ativo: !usuario.ativo });
   },
 });

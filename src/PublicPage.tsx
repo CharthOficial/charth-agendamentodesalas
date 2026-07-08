@@ -26,34 +26,10 @@ function minutesToHHMM(mins: number): string {
 }
 
 function cleanErrorMessage(e: any): string {
-  const sources = [
-    e?.data?.message,
-    e?.data,
-    e?.message,
-    typeof e?.toString === "function" ? e.toString() : null,
-  ].filter((s) => s && typeof s === "string");
-
-  for (const raw of sources) {
-    // Padrão 1: "Uncaught Error: <mensagem>"
-    const m1 = raw.match(/Uncaught Error:\s*(.+?)(?:\s+at \w|\s+Called by|$)/is);
-    if (m1?.[1]?.trim()) return m1[1].trim();
-
-    // Padrão 2: "Server Error\n<mensagem>"
-    const m2 = raw.match(/Server Error\s*\n\s*(.+?)(?:\s+at \w|\s+Called by|$)/is);
-    if (m2?.[1]?.trim()) return m2[1].trim();
-
-    // Padrão 3: tudo após o último "]" do prefixo CONVEX
-    const m3 = raw.match(/\]\s+(.+?)(?:\s+at \w|\s+Called by|$)/is);
-    if (m3?.[1]?.trim() && !m3[1].includes("Server Error") && !m3[1].includes("[Request")) {
-      return m3[1].trim();
-    }
-
-    // Padrão 4: string limpa sem prefixos técnicos
-    if (!raw.includes("[CONVEX") && !raw.includes("Server Error") && raw.length < 300) {
-      return raw.trim();
-    }
-  }
-
+  // ConvexError coloca a mensagem em e.data
+  if (e?.data && typeof e.data === "string") return e.data;
+  if (e?.data?.message && typeof e.data.message === "string") return e.data.message;
+  // Fallback para mensagem genérica
   return "Erro ao processar a solicitação.";
 }
 

@@ -1,4 +1,5 @@
-import { query, mutation } from "./_generated/server";
+import { query, mutation, action } from "./_generated/server";
+import { ConvexError } from "convex/values";
 import { v } from "convex/values";
 
 function parseTime(t: string): number {
@@ -25,13 +26,13 @@ export const criar = mutation({
   handler: async (ctx, args) => {
     const usuario = await ctx.db.get(args.criadoPorUsuarioId);
     if (!usuario || usuario.perfil !== "admin") {
-      throw new Error("Apenas administradores podem criar bloqueios.");
+      throw new ConvexError("Apenas administradores podem criar bloqueios.");
     }
 
     const inicio = parseTime(args.horarioInicio);
     const fim = parseTime(args.horarioFim);
     if (fim <= inicio) {
-      throw new Error("Horário final deve ser após o inicial.");
+      throw new ConvexError("Horário final deve ser após o inicial.");
     }
 
     // Verifica conflito com agendamentos existentes
@@ -47,7 +48,7 @@ export const criar = mutation({
       const as = parseTime(a.horarioInicio);
       const ae = parseTime(a.horarioFim);
       if (inicio < ae && fim > as) {
-        throw new Error(
+        throw new ConvexError(
           `Já existe um agendamento neste horário: ${a.nomeAgendamento}`
         );
       }

@@ -6,23 +6,8 @@ import { fmtDate, fmtDatetime } from "./lib/helpers";
 import { useAuth } from "./lib/auth";
 
 function cleanErrorMessage(e: any): string {
-  const candidates = [
-    e?.data?.message,
-    e?.message,
-    typeof e?.toString === "function" ? e.toString() : null,
-  ].filter(Boolean);
-  for (const raw of candidates) {
-    const match = raw.match(/Uncaught Error:\s*([^\n]+)/i);
-    if (match?.[1]) {
-      return match[1]
-        .replace(/\s*at handler.*$/is, "")
-        .replace(/\s*Called by.*$/is, "")
-        .trim();
-    }
-    if (!raw.includes("[CONVEX") && !raw.includes("Server Error") && raw.length < 200) {
-      return raw.trim();
-    }
-  }
+  if (e?.data && typeof e.data === "string") return e.data;
+  if (e?.data?.message && typeof e.data.message === "string") return e.data.message;
   return "Erro ao processar a solicitação.";
 }
 
