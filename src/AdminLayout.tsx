@@ -17,12 +17,10 @@ const NAV = [
 export default function AdminLayout({ onLogout }: { onLogout: () => void }) {
   const { user } = useAuth();
   const [page, setPage] = useState("dashboard");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   if (!user) return null;
 
   const navItems = NAV.filter((n) => !n.adminOnly || user.perfil === "admin");
-  const sections = [...new Set(navItems.map((n) => n.section))];
   const pageTitle = NAV.find((n) => n.id === page)?.label || "Painel";
 
   const renderPage = () => {
@@ -36,88 +34,42 @@ export default function AdminLayout({ onLogout }: { onLogout: () => void }) {
     }
   };
 
-  const navigate = (id: string) => {
-    setPage(id);
-    setSidebarOpen(false);
-  };
-
   return (
-    <div id="app">
-      {/* Sidebar overlay for mobile */}
-      {sidebarOpen && (
-        <div
-          style={{
-            position: "fixed", inset: 0, background: "rgba(58,42,44,0.5)",
-            zIndex: 40, display: "none",
-          }}
-          className="mobile-overlay"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar — desktop always visible, mobile slide-in */}
-      <nav className={`sidebar${sidebarOpen ? " sidebar-open" : ""}`}>
-        <div className="sidebar-logo">
-          <div className="logo-mark">Charth</div>
-          <div className="logo-sub">Agendamento de Salas</div>
+    <div className="admin-layout">
+      {/* Top bar */}
+      <header className="admin-topbar">
+        <div className="admin-topbar-left">
+          <div className="admin-logo">Charth</div>
+          <div className="admin-logo-sub">Agendamento de Salas</div>
         </div>
-        <div className="sidebar-nav">
-          {sections.map((section) => (
-            <div key={section}>
-              <div className="nav-section">{section}</div>
-              {navItems.filter((n) => n.section === section).map((n) => (
-                <button
-                  key={n.id}
-                  className={`nav-item${page === n.id ? " active" : ""}`}
-                  onClick={() => navigate(n.id)}
-                >
-                  <span className="icon">{n.icon}</span>
-                  {n.label}
-                </button>
-              ))}
-            </div>
-          ))}
-        </div>
-        <div className="sidebar-user">
-          <div className="user-avatar">{user.nome[0]}</div>
-          <div className="user-info">
-            <div className="user-name">{user.nome}</div>
-            <div className="user-role">{user.perfil === "admin" ? "Administrador" : "Gestor"}</div>
-          </div>
-          <button className="btn-logout" onClick={onLogout} title="Sair">↩</button>
-        </div>
-      </nav>
-
-      {/* Main content */}
-      <div className="main">
-        <div className="topbar">
-          {/* Hamburger menu — mobile only */}
-          <button
-            className="hamburger-btn"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            aria-label="Menu"
-          >
-            ☰
-          </button>
-          <div className="topbar-title">{pageTitle}</div>
+        <div className="admin-topbar-title">{pageTitle}</div>
+        <div className="admin-topbar-right">
           <span className={`badge ${user.perfil === "admin" ? "badge-purple" : "badge-blue"}`}>
             {user.perfil === "admin" ? "⭐ Admin" : "👔 Gestor"}
           </span>
-          <button className="btn-logout-top" onClick={onLogout} title="Sair">↩</button>
+          <div className="admin-user-info">
+            <div className="user-avatar" style={{ width: 30, height: 30, fontSize: 11 }}>{user.nome[0]}</div>
+            <span className="admin-user-name">{user.nome}</span>
+          </div>
+          <button className="btn-logout" onClick={onLogout} title="Sair">↩</button>
         </div>
-        <div className="content">{renderPage()}</div>
-      </div>
+      </header>
 
-      {/* Bottom navigation — mobile only */}
-      <nav className="bottom-nav">
-        {navItems.slice(0, 5).map((n) => (
+      {/* Content */}
+      <main className="admin-main">
+        {renderPage()}
+      </main>
+
+      {/* Bottom navigation */}
+      <nav className="admin-bottom-nav">
+        {navItems.map((n) => (
           <button
             key={n.id}
-            className={`bottom-nav-item${page === n.id ? " active" : ""}`}
+            className={`admin-nav-item${page === n.id ? " active" : ""}`}
             onClick={() => setPage(n.id)}
           >
-            <span className="bottom-nav-icon">{n.icon}</span>
-            <span className="bottom-nav-label">{n.label}</span>
+            <span className="admin-nav-icon">{n.icon}</span>
+            <span className="admin-nav-label">{n.label}</span>
           </button>
         ))}
       </nav>
