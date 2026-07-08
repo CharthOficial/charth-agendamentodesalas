@@ -376,7 +376,7 @@ function BookingFormModal({
             ))}
           </select>
         </div>
-        <div className="form-group">
+        <div className="form-group col-span-2">
           <label className="required">Data</label>
           <input type="date" value={form.data} onChange={(e) => set("data", e.target.value)} />
         </div>
