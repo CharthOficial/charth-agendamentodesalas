@@ -32,7 +32,11 @@ function cleanErrorMessage(e: any): string {
     .replace(/\[Request ID:[^\]]*\]\s*/gi, "")
     .replace(/Server Error\s*/gi, "")
     .replace(/Uncaught Error:\s*/gi, "")
+    .replace(/\s*Called by client.*$/is, "")
     .replace(/\s*at handler.*$/is, "")
+    .trim();
+  return msg || "Erro ao processar a solicitação.";
+}
     .trim();
   return msg || "Erro ao processar a solicitação.";
 }
