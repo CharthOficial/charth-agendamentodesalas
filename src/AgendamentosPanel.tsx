@@ -5,6 +5,7 @@ import type { Id } from "../convex/_generated/dataModel";
 import { fmtDate, fmtDatetime } from "./lib/helpers";
 import { useAuth } from "./lib/auth";
 import ParticipantesInput from "./components/ParticipantesInput";
+import { useQuery, useMutation, useAction } from "convex/react";
 
 function cleanErrorMessage(e: any): string {
   if (e?.data && typeof e.data === "string") return e.data;
@@ -19,6 +20,8 @@ export default function AgendamentosPanel() {
   const criar = useMutation(api.agendamentos.criar);
   const editar = useMutation(api.agendamentos.editar);
   const excluir = useMutation(api.agendamentos.excluir);
+  const criarEventoCalendar = useAction(api.googleCalendar.criarEvento);
+  const cancelarEventoCalendar = useAction(api.googleCalendar.cancelarEvento);
 
   const [filterDate, setFilterDate] = useState("");
   const [filterSala, setFilterSala] = useState("");
@@ -55,6 +58,12 @@ export default function AgendamentosPanel() {
     } catch (e: any) {
       showToast(cleanErrorMessage(e), "error");
     }
+    const agend = agendamentos.find((a) => a._id === id);
+      if (agend?.googleCalendarEventId) {
+        cancelarEventoCalendar({
+          googleCalendarEventId: agend.googleCalendarEventId,
+        }).catch((err: any) => console.error("Erro cancelar Google Calendar:", err));
+      }
   };
 
   return (
@@ -175,12 +184,24 @@ export default function AgendamentosPanel() {
           onClose={() => setModalNew(false)}
           onSubmit={async (data) => {
             try {
-              await criar({
+              const novoId = await criar({
                 ...data,
                 criadoPorTipo: user!.perfil,
                 criadoPorUsuarioId: user!.id as Id<"usuariosAdmin">,
               });
-              setModalNew(false);
+              criarEventoCalendar({
+              agendamentoId: novoId,
+              nomeAgendamento: data.nomeAgendamento,
+              responsavelNome: data.responsavelNome,
+              data: data.data,
+              horarioInicio: data.horarioInicio,
+              horarioFim: data.horarioFim,
+              emailsParticipantes: data.emailsParticipantes,
+              descricao: data.descricao,
+              salaNome: salas.find((s) => s._id === data.salaId)?.nome ?? "",
+              salaLocal: salas.find((s) => s._id === data.salaId)?.local ?? "",
+            }).catch((err: any) => console.error("Erro Google Calendar:", err));
+                          setModalNew(false);
               showToast("Agendamento criado com sucesso!");
             } catch (e: any) {
               throw new Error(cleanErrorMessage(e));
