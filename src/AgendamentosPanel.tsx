@@ -3,6 +3,7 @@ import type { Id } from "../convex/_generated/dataModel";
 import { fmtDate, fmtDatetime } from "./lib/helpers";
 import { useAuth } from "./lib/auth";
 import ParticipantesInput from "./components/ParticipantesInput";
+import { useState } from "react";
 import { useQuery, useMutation, useAction } from "convex/react";
 
 function cleanErrorMessage(e: any): string {
