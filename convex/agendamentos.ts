@@ -244,3 +244,17 @@ export const excluir = mutation({
     });
   },
 });
+import { internalMutation } from "./_generated/server";
+
+// Salva o ID do evento Google Calendar (chamado internamente)
+export const salvarGoogleEventId = internalMutation({
+  args: {
+    id: v.id("agendamentos"),
+    googleCalendarEventId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.id, {
+      googleCalendarEventId: args.googleCalendarEventId,
+    });
+  },
+});
