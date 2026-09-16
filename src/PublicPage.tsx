@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../convex/_generated/api";
 import ParticipantesInput from "./components/ParticipantesInput";
 import type { Id } from "../convex/_generated/dataModel";
+import { useQuery, useMutation, useAction } from "convex/react";
 
 function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
@@ -55,6 +56,7 @@ export default function PublicPage() {
   const todosAgendamentos = useQuery(api.agendamentos.listar) ?? [];
   const bloqueios = useQuery(api.bloqueios.listar) ?? [];
   const criarAgendamento = useMutation(api.agendamentos.criar);
+  const criarEventoCalendar = useAction(api.googleCalendar.criarEvento);
 
   const [view, setView] = useState<"rooms" | "calendar">("rooms");
   const [selectedRoom, setSelectedRoom] = useState<any>(null);
@@ -85,7 +87,7 @@ export default function PublicPage() {
     }
 
     try {
-      await criarAgendamento({
+      const agendamentoId = await criarAgendamento({
         salaId: selectedRoom._id as Id<"salas">,
         nomeAgendamento: form.nomeAgendamento,
         responsavelNome: form.responsavelNome,
@@ -97,6 +99,19 @@ export default function PublicPage() {
         descricao: form.descricao,
         criadoPorTipo: "publico",
       });
+      // Cria evento no Google Calendar
+      criarEventoCalendar({
+        agendamentoId,
+        nomeAgendamento: form.nomeAgendamento,
+        responsavelNome: form.responsavelNome,
+        data: modalSlot.data,
+        horarioInicio: modalSlot.horarioInicio,
+        horarioFim: modalSlot.horarioFim,
+        emailsParticipantes: form.emailsParticipantes,
+        descricao: form.descricao,
+        salaNome: selectedRoom.nome,
+        salaLocal: selectedRoom.local,
+      }).catch((err: any) => console.error("Erro Google Calendar:", err));
 
       setLastBooking({
         ...form,
@@ -109,10 +124,6 @@ export default function PublicPage() {
       setModalSlot(null);
       setStep("success");
     } catch (e: any) {
-      console.log("CONVEX ERROR OBJECT:", e);
-      console.log("e.message:", e?.message);
-      console.log("e.data:", e?.data);
-      console.log("e.toString():", e?.toString?.());
       setError(cleanErrorMessage(e));
     }
   };
