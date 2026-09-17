@@ -15,17 +15,11 @@ export default function UsuariosPanel() {
   const usuarios = useQuery(api.usuarios.listar) ?? [];
   const criar = useMutation(api.usuarios.criar);
   const alternarAtivo = useMutation(api.usuarios.alternarAtivo);
-  const alterarSenha = useMutation(api.usuarios.alterarSenha);
 
   const [modalNew, setModalNew] = useState(false);
   const [form, setForm] = useState({ nome: "", email: "", senha: "", perfil: "gestor" as "admin" | "gestor" });
   const [error, setError] = useState("");
   const [toast, setToast] = useState<string | null>(null);
-
-  const [senhaUserId, setSenhaUserId] = useState<Id<"usuariosAdmin"> | null>(null);
-  const [senhaUserNome, setSenhaUserNome] = useState("");
-  const [senhaForm, setSenhaForm] = useState({ novaSenha: "", confirmar: "" });
-  const [senhaError, setSenhaError] = useState("");
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -57,31 +51,6 @@ export default function UsuariosPanel() {
   const toggleUser = async (id: Id<"usuariosAdmin">) => {
     await alternarAtivo({ id });
     showToast("Usuário atualizado.");
-  };
-
-  const openSenha = (id: Id<"usuariosAdmin">, nome: string) => {
-    setSenhaUserId(id);
-    setSenhaUserNome(nome);
-    setSenhaForm({ novaSenha: "", confirmar: "" });
-    setSenhaError("");
-  };
-
-  const handleAlterarSenha = async () => {
-    setSenhaError("");
-    if (!senhaUserId) return;
-    if (senhaForm.novaSenha.length < 6) {
-      return setSenhaError("A senha deve ter pelo menos 6 caracteres.");
-    }
-    if (senhaForm.novaSenha !== senhaForm.confirmar) {
-      return setSenhaError("As senhas não coincidem.");
-    }
-    try {
-      await alterarSenha({ id: senhaUserId, novaSenha: senhaForm.novaSenha });
-      setSenhaUserId(null);
-      showToast("Senha atualizada!");
-    } catch (e: any) {
-      setSenhaError(cleanErrorMessage(e));
-    }
   };
 
   return (
@@ -120,17 +89,12 @@ export default function UsuariosPanel() {
                   </span>
                 </td>
                 <td>
-                  <div className="flex gap-1">
-                    <button className="btn btn-sm btn-secondary" onClick={() => openSenha(u._id, u.nome)}>
-                      Trocar senha
-                    </button>
-                    <button
-                      className={`btn btn-sm ${u.ativo ? "btn-danger" : "btn-success"}`}
-                      onClick={() => toggleUser(u._id)}
-                    >
-                      {u.ativo ? "Inativar" : "Ativar"}
-                    </button>
-                  </div>
+                  <button
+                    className={`btn btn-sm ${u.ativo ? "btn-danger" : "btn-success"}`}
+                    onClick={() => toggleUser(u._id)}
+                  >
+                    {u.ativo ? "Inativar" : "Ativar"}
+                  </button>
                 </td>
               </tr>
             ))}
@@ -188,48 +152,6 @@ export default function UsuariosPanel() {
               </button>
               <button className="btn btn-primary" onClick={handleCreate}>
                 Criar usuário
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {senhaUserId && (
-        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setSenhaUserId(null)}>
-          <div className="modal">
-            <div className="modal-header">
-              <span className="modal-title">Trocar senha — {senhaUserNome}</span>
-              <button className="modal-close" onClick={() => setSenhaUserId(null)}>
-                ×
-              </button>
-            </div>
-            <div className="modal-body">
-              {senhaError && <div className="alert alert-error">⚠ {senhaError}</div>}
-              <div className="form-grid full">
-                <div className="form-group">
-                  <label className="required">Nova senha</label>
-                  <input
-                    type="password"
-                    value={senhaForm.novaSenha}
-                    onChange={(e) => setSenhaForm((f) => ({ ...f, novaSenha: e.target.value }))}
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="required">Confirmar nova senha</label>
-                  <input
-                    type="password"
-                    value={senhaForm.confirmar}
-                    onChange={(e) => setSenhaForm((f) => ({ ...f, confirmar: e.target.value }))}
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setSenhaUserId(null)}>
-                Cancelar
-              </button>
-              <button className="btn btn-primary" onClick={handleAlterarSenha}>
-                Salvar nova senha
               </button>
             </div>
           </div>
