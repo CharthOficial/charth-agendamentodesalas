@@ -1,10 +1,24 @@
-import { query, mutation } from "./_generated/server";
+import { query, mutation, internalMutation } from "./_generated/server";
 import { ConvexError } from "convex/values";
 import { v } from "convex/values";
 
 function parseTime(t: string): number {
   const [h, m] = t.split(":").map(Number);
   return h * 60 + m;
+}
+
+// Trabalha em UTC de propósito, pra "YYYY-MM-DD" nunca deslizar de dia
+// por causa de fuso horário (evita o bug clássico de toISOString()).
+function parseDateUTC(dateStr: string): Date {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
+}
+
+function formatDateUTC(date: Date): string {
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(date.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 // Lista todos os agendamentos (painel admin)
@@ -244,7 +258,113 @@ export const excluir = mutation({
     });
   },
 });
-import { internalMutation } from "./_generated/server";
+// Cria um agendamento recorrente: gera uma ocorrência em agendamentos
+// pra cada dia dentro do intervalo que cair nos dias da semana escolhidos.
+// Restrito a administradores (sem limite de duração, diferente do fluxo avulso).
+export const criarRecorrencia = mutation({
+  args: {
+    salaId: v.id("salas"),
+    nomeAgendamento: v.string(),
+    responsavelNome: v.string(),
+    responsavelSetor: v.string(),
+    diasDaSemana: v.array(v.number()), // 0=domingo ... 6=sábado
+    horarioInicio: v.string(),
+    horarioFim: v.string(),
+    dataInicio: v.string(), // YYYY-MM-DD
+    dataFim: v.string(), // YYYY-MM-DD
+    emailsParticipantes: v.optional(v.string()),
+    descricao: v.optional(v.string()),
+    criadoPorUsuarioId: v.id("usuariosAdmin"),
+  },
+  handler: async (ctx, args) => {
+    const usuario = await ctx.db.get(args.criadoPorUsuarioId);
+    if (!usuario || (usuario.perfil !== "admin" && usuario.perfil !== "gestor")) {
+      throw new ConvexError("Apenas administradores e gestores podem criar agendamentos recorrentes.");
+    }
+
+    const inicio = parseTime(args.horarioInicio);
+    const fim = parseTime(args.horarioFim);
+    if (fim <= inicio) {
+      throw new ConvexError("O horário final deve ser após o horário inicial.");
+    }
+
+    const duracaoHoras = (fim - inicio) / 60;
+    if (usuario.perfil === "gestor" && duracaoHoras > 3) {
+      throw new ConvexError("Gestores podem criar agendamentos de no máximo 3 horas por ocorrência.");
+    }
+
+    if (args.diasDaSemana.length === 0) {
+      throw new ConvexError("Selecione pelo menos um dia da semana.");
+    }
+
+    const dataInicioObj = parseDateUTC(args.dataInicio);
+    const dataFimObj = parseDateUTC(args.dataFim);
+    if (dataFimObj < dataInicioObj) {
+      throw new ConvexError("Data final deve ser igual ou após a data inicial.");
+    }
+
+    const recorrenciaId = await ctx.db.insert("recorrencias", {
+      tipo: "agendamento",
+      salaId: args.salaId,
+      diasDaSemana: args.diasDaSemana,
+      horarioInicio: args.horarioInicio,
+      horarioFim: args.horarioFim,
+      dataInicio: args.dataInicio,
+      dataFim: args.dataFim,
+      nomeAgendamento: args.nomeAgendamento,
+      responsavelNome: args.responsavelNome,
+      responsavelSetor: args.responsavelSetor,
+      emailsParticipantes: args.emailsParticipantes,
+      descricao: args.descricao,
+      criadoPorUsuarioId: args.criadoPorUsuarioId,
+      ativa: true,
+      geradoAte: args.dataFim,
+    });
+
+    let criados = 0;
+    const pulados: string[] = [];
+    const cursor = new Date(dataInicioObj);
+
+    while (cursor.getTime() <= dataFimObj.getTime()) {
+      if (args.diasDaSemana.includes(cursor.getUTCDay())) {
+        const dataStr = formatDateUTC(cursor);
+
+        const conflito = await verificarConflito(
+          ctx,
+          args.salaId,
+          dataStr,
+          args.horarioInicio,
+          args.horarioFim
+        );
+
+        if (conflito) {
+          pulados.push(dataStr);
+        } else {
+          await ctx.db.insert("agendamentos", {
+            salaId: args.salaId,
+            nomeAgendamento: args.nomeAgendamento,
+            responsavelNome: args.responsavelNome,
+            responsavelSetor: args.responsavelSetor,
+            data: dataStr,
+            horarioInicio: args.horarioInicio,
+            horarioFim: args.horarioFim,
+            emailsParticipantes: args.emailsParticipantes,
+            descricao: args.descricao,
+            status: "agendado",
+            criadoPorTipo: usuario.perfil,
+            criadoPorUsuarioId: args.criadoPorUsuarioId,
+            googleCalendarEventId: `evt_${Date.now()}_${dataStr}`, // placeholder
+            recorrenciaId,
+          });
+          criados++;
+        }
+      }
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+
+    return { ok: true, recorrenciaId, criados, pulados };
+  },
+});
 
 // Salva o ID do evento Google Calendar (chamado internamente)
 export const salvarGoogleEventId = internalMutation({

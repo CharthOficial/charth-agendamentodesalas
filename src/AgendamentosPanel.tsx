@@ -17,6 +17,7 @@ export default function AgendamentosPanel() {
   const agendamentos = useQuery(api.agendamentos.listar) ?? [];
   const salas = useQuery(api.salas.listar) ?? [];
   const criar = useMutation(api.agendamentos.criar);
+  const criarRecorrencia = useMutation(api.agendamentos.criarRecorrencia);
   const editar = useMutation(api.agendamentos.editar);
   const excluir = useMutation(api.agendamentos.excluir);
   const criarEventoCalendar = useAction(api.googleCalendar.criarEvento);
@@ -120,7 +121,14 @@ export default function AgendamentosPanel() {
                   const statusLabel = a.status === "agendado" ? "Agendado" : "Cancelado";
                   return (
                     <tr key={a._id}>
-                      <td>{fmtDate(a.data)}</td>
+                      <td>
+                        {fmtDate(a.data)}
+                        {a.recorrenciaId && (
+                          <span title="Faz parte de uma recorrência" style={{ marginLeft: 6 }}>
+                            🔁
+                          </span>
+                        )}
+                      </td>
                       <td>
                         {a.horarioInicio} – {a.horarioFim}
                       </td>
@@ -181,7 +189,35 @@ export default function AgendamentosPanel() {
           title="Novo agendamento"
           salas={salas}
           onClose={() => setModalNew(false)}
-          onSubmit={async (data) => {
+          onSubmit={async (data, recorrencia) => {
+            if (recorrencia) {
+              try {
+                const resultado = await criarRecorrencia({
+                  salaId: data.salaId as Id<"salas">,
+                  nomeAgendamento: data.nomeAgendamento,
+                  responsavelNome: data.responsavelNome,
+                  responsavelSetor: data.responsavelSetor,
+                  diasDaSemana: recorrencia.diasDaSemana,
+                  horarioInicio: data.horarioInicio,
+                  horarioFim: data.horarioFim,
+                  dataInicio: data.data,
+                  dataFim: recorrencia.dataFim,
+                  emailsParticipantes: data.emailsParticipantes,
+                  descricao: data.descricao,
+                  criadoPorUsuarioId: user!.id as Id<"usuariosAdmin">,
+                });
+                setModalNew(false);
+                const msgPulados =
+                  resultado.pulados.length > 0
+                    ? ` (${resultado.pulados.length} pulado(s) por conflito)`
+                    : "";
+                showToast(`${resultado.criados} agendamentos criados!${msgPulados}`);
+              } catch (e: any) {
+                throw new Error(cleanErrorMessage(e));
+              }
+              return;
+            }
+
             try {
               const novoId = await criar({
                 ...data,
@@ -332,7 +368,10 @@ function BookingFormModal({
   editMode?: boolean;
   perfil: "admin" | "gestor";
   onClose: () => void;
-  onSubmit: (data: any) => Promise<void>;
+  onSubmit: (
+    data: any,
+    recorrencia?: { diasDaSemana: number[]; dataFim: string }
+  ) => Promise<void>;
 }) {
   const [form, setForm] = useState({
     nomeAgendamento: initial?.nomeAgendamento || "",
@@ -346,6 +385,27 @@ function BookingFormModal({
     descricao: initial?.descricao || "",
   });
   const [error, setError] = useState("");
+
+  const podeRepetir = !editMode;
+  const [repetir, setRepetir] = useState(false);
+  const [diasSelecionados, setDiasSelecionados] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [dataFimRecorrencia, setDataFimRecorrencia] = useState("");
+
+  const DIAS_SEMANA = [
+    { valor: 0, label: "Dom" },
+    { valor: 1, label: "Seg" },
+    { valor: 2, label: "Ter" },
+    { valor: 3, label: "Qua" },
+    { valor: 4, label: "Qui" },
+    { valor: 5, label: "Sex" },
+    { valor: 6, label: "Sáb" },
+  ];
+
+  const toggleDia = (valor: number) => {
+    setDiasSelecionados((prev) =>
+      prev.includes(valor) ? prev.filter((d) => d !== valor) : [...prev, valor]
+    );
+  };
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
   const maxHours = perfil === "admin" ? Infinity : 3;
@@ -363,8 +423,17 @@ function BookingFormModal({
     ) {
       return setError("Preencha todos os campos obrigatórios.");
     }
+
+    if (repetir) {
+      if (!dataFimRecorrencia) return setError("Preencha a data fim da recorrência.");
+      if (diasSelecionados.length === 0) return setError("Selecione pelo menos um dia da semana.");
+    }
+
     try {
-      await onSubmit(form);
+      await onSubmit(
+        form,
+        repetir ? { diasDaSemana: diasSelecionados, dataFim: dataFimRecorrencia } : undefined
+      );
     } catch (e: any) {
       setError(cleanErrorMessage(e));
     }
@@ -398,9 +467,52 @@ function BookingFormModal({
           </select>
         </div>
         <div className="form-group col-span-2">
-          <label className="required">Data</label>
+          <label className="required">{repetir ? "Data início" : "Data"}</label>
           <input type="date" value={form.data} onChange={(e) => set("data", e.target.value)} />
         </div>
+
+        {podeRepetir && (
+          <div className="form-group col-span-2" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <input
+              type="checkbox"
+              id="repetir-agendamento"
+              checked={repetir}
+              onChange={(e) => setRepetir(e.target.checked)}
+              style={{ width: "auto" }}
+            />
+            <label htmlFor="repetir-agendamento" style={{ margin: 0, cursor: "pointer" }}>
+              Repetir (agendamento recorrente)
+            </label>
+          </div>
+        )}
+
+        {podeRepetir && repetir && (
+          <>
+            <div className="form-group col-span-2">
+              <label className="required">Repetir nos dias</label>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {DIAS_SEMANA.map((d) => (
+                  <button
+                    key={d.valor}
+                    type="button"
+                    onClick={() => toggleDia(d.valor)}
+                    className={`btn btn-sm ${diasSelecionados.includes(d.valor) ? "btn-primary" : "btn-secondary"}`}
+                  >
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="form-group col-span-2">
+              <label className="required">Data fim da recorrência</label>
+              <input
+                type="date"
+                value={dataFimRecorrencia}
+                onChange={(e) => setDataFimRecorrencia(e.target.value)}
+              />
+            </div>
+          </>
+        )}
         <div className="form-group">
           <label className="required">Horário inicial</label>
           <input type="time" value={form.horarioInicio} onChange={(e) => set("horarioInicio", e.target.value)} />
@@ -428,7 +540,7 @@ function BookingFormModal({
       </div>
       <div style={{ marginTop: 18 }}>
         <button className="btn btn-primary btn-full" onClick={handleSubmit}>
-          {editMode ? "💾 Salvar alterações" : "✔ Confirmar agendamento"}
+          {editMode ? "💾 Salvar alterações" : repetir ? "🔁 Criar agendamentos recorrentes" : "✔ Confirmar agendamento"}
         </button>
       </div>
     </Modal>
