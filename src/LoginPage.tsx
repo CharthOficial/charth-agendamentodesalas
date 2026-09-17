@@ -77,11 +77,7 @@ export default function LoginPage({
           <button className="btn btn-primary btn-full" onClick={handle}>
             Entrar
           </button>
-          <div style={{ marginTop: 20, fontSize: 12, color: "var(--text3)", textAlign: "center" }}>
-            <div>Demo — Admin: admin@charth.com.br / admin123</div>
-            <div>Demo — Gestor: lucas.leite@charth.com.br / gestor123</div>
-          </div>
-        </div>
+         </div>
       </div>
     </div>
   );
