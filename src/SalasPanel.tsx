@@ -7,9 +7,12 @@ export default function SalasPanel({ perfil }: { perfil: "admin" | "gestor" }) {
   const salas = useQuery(api.salas.listar) ?? [];
   const criar = useMutation(api.salas.criar);
   const alternarAtivo = useMutation(api.salas.alternarAtivo);
+  const editar = useMutation(api.salas.editar);
 
   const [modalNew, setModalNew] = useState(false);
   const [form, setForm] = useState({ nome: "", local: "" });
+  const [editingId, setEditingId] = useState<Id<"salas"> | null>(null);
+  const [editForm, setEditForm] = useState({ nome: "", local: "" });
   const [toast, setToast] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -28,6 +31,18 @@ export default function SalasPanel({ perfil }: { perfil: "admin" | "gestor" }) {
     setModalNew(false);
     setForm({ nome: "", local: "" });
     showToast("Sala criada!");
+  };
+
+  const openEdit = (id: Id<"salas">, nome: string, local: string) => {
+    setEditingId(id);
+    setEditForm({ nome, local });
+  };
+
+  const handleEdit = async () => {
+    if (!editingId || !editForm.nome || !editForm.local) return;
+    await editar({ id: editingId, nome: editForm.nome, local: editForm.local });
+    setEditingId(null);
+    showToast("Sala atualizada!");
   };
 
   return (
@@ -55,12 +70,20 @@ export default function SalasPanel({ perfil }: { perfil: "admin" | "gestor" }) {
                 {r.ativo ? "Ativa" : "Inativa"}
               </span>
               {perfil === "admin" && (
-                <button
-                  className={`btn btn-sm ${r.ativo ? "btn-secondary" : "btn-success"}`}
-                  onClick={() => toggle(r._id)}
-                >
-                  {r.ativo ? "Inativar" : "Ativar"}
-                </button>
+                <>
+                  <button
+                    className="btn btn-sm btn-secondary"
+                    onClick={() => openEdit(r._id, r.nome, r.local)}
+                  >
+                    Editar
+                  </button>
+                  <button
+                    className={`btn btn-sm ${r.ativo ? "btn-secondary" : "btn-success"}`}
+                    onClick={() => toggle(r._id)}
+                  >
+                    {r.ativo ? "Inativar" : "Ativar"}
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -102,6 +125,47 @@ export default function SalasPanel({ perfil }: { perfil: "admin" | "gestor" }) {
               </button>
               <button className="btn btn-primary" onClick={handleCreate}>
                 Criar sala
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingId && (
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setEditingId(null)}>
+          <div className="modal">
+            <div className="modal-header">
+              <span className="modal-title">Editar sala</span>
+              <button className="modal-close" onClick={() => setEditingId(null)}>
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="form-grid full">
+                <div className="form-group">
+                  <label className="required">Nome da sala</label>
+                  <input
+                    value={editForm.nome}
+                    onChange={(e) => setEditForm((f) => ({ ...f, nome: e.target.value }))}
+                    placeholder="Ex: Sala Principal"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="required">Local / Unidade</label>
+                  <input
+                    value={editForm.local}
+                    onChange={(e) => setEditForm((f) => ({ ...f, local: e.target.value }))}
+                    placeholder="Ex: Showroom — 9º Andar"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setEditingId(null)}>
+                Cancelar
+              </button>
+              <button className="btn btn-primary" onClick={handleEdit}>
+                Salvar
               </button>
             </div>
           </div>

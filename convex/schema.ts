@@ -37,10 +37,12 @@ export default defineSchema({
     criadoPorUsuarioId: v.optional(v.id("usuariosAdmin")),
     googleCalendarEventId: v.optional(v.string()),
     usuarioAlteracaoId: v.optional(v.id("usuariosAdmin")),
+    recorrenciaId: v.optional(v.id("recorrencias")),
   })
     .index("by_sala_data", ["salaId", "data"])
     .index("by_data", ["data"])
-    .index("by_status", ["status"]),
+    .index("by_status", ["status"])
+    .index("by_recorrencia", ["recorrenciaId"]),
 
   // Bloqueios de sala
   bloqueiosSala: defineTable({
@@ -50,7 +52,36 @@ export default defineSchema({
     horarioFim: v.string(),
     motivo: v.optional(v.string()),
     criadoPorUsuarioId: v.optional(v.id("usuariosAdmin")),
+    recorrenciaId: v.optional(v.id("recorrencias")),
   })
     .index("by_sala_data", ["salaId", "data"])
-    .index("by_data", ["data"]),
+    .index("by_data", ["data"])
+    .index("by_recorrencia", ["recorrenciaId"]),
+
+  // Regras de recorrência (agendamento ou bloqueio que se repete)
+  recorrencias: defineTable({
+    tipo: v.union(v.literal("agendamento"), v.literal("bloqueio")),
+    salaId: v.id("salas"),
+
+    // Regra de repetição
+    diasDaSemana: v.array(v.number()), // 0=domingo ... 6=sábado
+    horarioInicio: v.string(), // HH:MM
+    horarioFim: v.string(),
+    dataInicio: v.string(), // YYYY-MM-DD
+    dataFim: v.optional(v.string()), // YYYY-MM-DD; ausente = sem data de término
+
+    // Dados copiados para cada ocorrência gerada
+    nomeAgendamento: v.optional(v.string()),
+    responsavelNome: v.optional(v.string()),
+    responsavelSetor: v.optional(v.string()),
+    emailsParticipantes: v.optional(v.string()),
+    descricao: v.optional(v.string()),
+    motivo: v.optional(v.string()), // usado quando tipo = "bloqueio"
+
+    criadoPorUsuarioId: v.id("usuariosAdmin"),
+    ativa: v.boolean(),
+    geradoAte: v.optional(v.string()), // YYYY-MM-DD até onde já foram materializadas as ocorrências (controle do cron)
+  })
+    .index("by_sala", ["salaId"])
+    .index("by_ativa", ["ativa"]),
 });
