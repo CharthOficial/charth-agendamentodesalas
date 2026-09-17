@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../convex/_generated/api";
+import type { Id } from "../convex/_generated/dataModel";
 import { useAuth } from "./lib/auth";
 import Dashboard from "./Dashboard";
 import AgendamentosPanel from "./AgendamentosPanel";
@@ -56,7 +57,7 @@ export default function AdminLayout({ onLogout }: { onLogout: () => void }) {
     }
     try {
       await trocarMinhaSenha({
-        id: user.id,
+        id: user.id as Id<"usuariosAdmin">,
         senhaAtual: senhaForm.senhaAtual,
         novaSenha: senhaForm.novaSenha,
       });
