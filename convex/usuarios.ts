@@ -65,6 +65,24 @@ export const alternarAtivo = mutation({
   },
 });
 
+// Troca a senha de um usuário administrativo
+export const alterarSenha = mutation({
+  args: {
+    id: v.id("usuariosAdmin"),
+    novaSenha: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const usuario = await ctx.db.get(args.id);
+    if (!usuario) throw new ConvexError("Usuário não encontrado");
+
+    if (args.novaSenha.length < 6) {
+      throw new ConvexError("A senha deve ter pelo menos 6 caracteres.");
+    }
+
+    await ctx.db.patch(args.id, { senhaHash: args.novaSenha }); // simplificado p/ teste
+  },
+});
+
 // Seed inicial dos usuários de teste
 export const seedUsuariosCharth = mutation({
   args: {},
