@@ -56,6 +56,29 @@ export const criar = mutation({
   },
 });
 
+// Troca a própria senha (exige senha atual correta)
+export const trocarMinhaSenha = mutation({
+  args: {
+    id: v.id("usuariosAdmin"),
+    senhaAtual: v.string(),
+    novaSenha: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const usuario = await ctx.db.get(args.id);
+    if (!usuario) throw new ConvexError("Usuário não encontrado");
+
+    if (usuario.senhaHash !== args.senhaAtual) {
+      throw new ConvexError("Senha atual incorreta.");
+    }
+
+    if (args.novaSenha.length < 6) {
+      throw new ConvexError("A nova senha deve ter pelo menos 6 caracteres.");
+    }
+
+    await ctx.db.patch(args.id, { senhaHash: args.novaSenha }); // simplificado p/ teste
+  },
+});
+
 export const alternarAtivo = mutation({
   args: { id: v.id("usuariosAdmin") },
   handler: async (ctx, args) => {
