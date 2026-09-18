@@ -419,7 +419,8 @@ function BookingFormModal({
       !form.salaId ||
       !form.data ||
       !form.horarioInicio ||
-      !form.horarioFim
+      !form.horarioFim ||
+      !form.descricao.trim()
     ) {
       return setError("Preencha todos os campos obrigatórios.");
     }
@@ -534,7 +535,7 @@ function BookingFormModal({
           />
         </div>
         <div className="form-group col-span-2">
-          <label>Descrição da reunião</label>
+          <label className="required">Descrição da reunião</label>
           <textarea value={form.descricao} onChange={(e) => set("descricao", e.target.value)} />
         </div>
       </div>

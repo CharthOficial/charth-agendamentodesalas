@@ -110,7 +110,7 @@ export const criar = mutation({
     horarioInicio: v.string(),
     horarioFim: v.string(),
     emailsParticipantes: v.optional(v.string()),
-    descricao: v.optional(v.string()),
+    descricao: v.string(),
     criadoPorTipo: v.union(v.literal("publico"), v.literal("admin"), v.literal("gestor")),
     criadoPorUsuarioId: v.optional(v.id("usuariosAdmin")),
   },
@@ -120,6 +120,10 @@ export const criar = mutation({
     const fim = parseTime(args.horarioFim);
     if (fim <= inicio) {
       throw new ConvexError("O horário final deve ser após o horário inicial.");
+    }
+
+    if (!args.descricao || args.descricao.trim().length === 0) {
+      throw new ConvexError("A descrição da reunião é obrigatória.");
     }
 
     // Validação de limite por perfil
@@ -192,7 +196,7 @@ export const editar = mutation({
     horarioInicio: v.string(),
     horarioFim: v.string(),
     emailsParticipantes: v.optional(v.string()),
-    descricao: v.optional(v.string()),
+    descricao: v.string(),
     perfilEditor: v.union(v.literal("admin"), v.literal("gestor")),
     usuarioAlteracaoId: v.optional(v.id("usuariosAdmin")),
   },
@@ -201,6 +205,10 @@ export const editar = mutation({
     const fim = parseTime(args.horarioFim);
     if (fim <= inicio) {
       throw new ConvexError("O horário final deve ser após o horário inicial.");
+    }
+
+    if (!args.descricao || args.descricao.trim().length === 0) {
+      throw new ConvexError("A descrição da reunião é obrigatória.");
     }
 
     const duracaoHoras = (fim - inicio) / 60;
@@ -274,7 +282,7 @@ export const criarRecorrencia = mutation({
     dataInicio: v.string(), // YYYY-MM-DD
     dataFim: v.string(), // YYYY-MM-DD
     emailsParticipantes: v.optional(v.string()),
-    descricao: v.optional(v.string()),
+    descricao: v.string(),
     criadoPorUsuarioId: v.id("usuariosAdmin"),
   },
   handler: async (ctx, args) => {
@@ -287,6 +295,10 @@ export const criarRecorrencia = mutation({
     const fim = parseTime(args.horarioFim);
     if (fim <= inicio) {
       throw new ConvexError("O horário final deve ser após o horário inicial.");
+    }
+
+    if (!args.descricao || args.descricao.trim().length === 0) {
+      throw new ConvexError("A descrição da reunião é obrigatória.");
     }
 
     const duracaoHoras = (fim - inicio) / 60;

@@ -82,7 +82,7 @@ export default function PublicPage() {
   const handleSubmit = async () => {
     setError("");
     if (!modalSlot) return;
-    if (!form.nomeAgendamento || !form.responsavelNome || !form.responsavelSetor) {
+    if (!form.nomeAgendamento || !form.responsavelNome || !form.responsavelSetor || !form.descricao.trim()) {
       return setError("Preencha todos os campos obrigatórios.");
     }
 
@@ -550,7 +550,7 @@ export default function PublicPage() {
                   />
                 </div>
                 <div className="form-group col-span-2">
-                  <label>Descrição da reunião</label>
+                  <label className="required">Descrição da reunião</label>
                   <textarea value={form.descricao} onChange={(e) => set("descricao", e.target.value)} />
                 </div>
               </div>
