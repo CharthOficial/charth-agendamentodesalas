@@ -1,6 +1,7 @@
 import { query, mutation, internalMutation } from "./_generated/server";
 import { ConvexError } from "convex/values";
 import { v } from "convex/values";
+import { api } from "./_generated/api";
 
 function parseTime(t: string): number {
   const [h, m] = t.split(":").map(Number);
@@ -303,6 +304,8 @@ export const criarRecorrencia = mutation({
       throw new ConvexError("Data final deve ser igual ou após a data inicial.");
     }
 
+    const sala = await ctx.db.get(args.salaId);
+
     const recorrenciaId = await ctx.db.insert("recorrencias", {
       tipo: "agendamento",
       salaId: args.salaId,
@@ -340,7 +343,7 @@ export const criarRecorrencia = mutation({
         if (conflito) {
           pulados.push(dataStr);
         } else {
-          await ctx.db.insert("agendamentos", {
+          const agendamentoId = await ctx.db.insert("agendamentos", {
             salaId: args.salaId,
             nomeAgendamento: args.nomeAgendamento,
             responsavelNome: args.responsavelNome,
@@ -356,6 +359,24 @@ export const criarRecorrencia = mutation({
             googleCalendarEventId: `evt_${Date.now()}_${dataStr}`, // placeholder
             recorrenciaId,
           });
+
+          // Agenda a criação do evento no Google Calendar de forma assíncrona
+          // (mutations não podem chamar fetch diretamente; o scheduler roda
+          // isso como uma Action logo após o commit desta mutation, sem
+          // bloquear a criação das demais ocorrências caso uma falhe).
+          await ctx.scheduler.runAfter(0, api.googleCalendar.criarEvento, {
+            agendamentoId,
+            nomeAgendamento: args.nomeAgendamento,
+            responsavelNome: args.responsavelNome,
+            data: dataStr,
+            horarioInicio: args.horarioInicio,
+            horarioFim: args.horarioFim,
+            emailsParticipantes: args.emailsParticipantes,
+            descricao: args.descricao,
+            salaNome: sala?.nome ?? "",
+            salaLocal: sala?.local ?? "",
+          });
+
           criados++;
         }
       }
