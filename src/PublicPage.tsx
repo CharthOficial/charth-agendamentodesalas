@@ -417,10 +417,10 @@ export default function PublicPage() {
                       d < todayStr() || (d === todayStr() && slotMin < new Date().getHours() * 60 + new Date().getMinutes());
 
                     if (info.status === "busy" && !info.isStart) {
-                      return <td key={`${d}-${slotMin}`} style={{ background: "rgba(196,105,108,0.08)", border: "1px solid var(--border)", height: 28 }} />;
+                      return null;
                     }
                     if (info.status === "blocked" && !info.isStart) {
-                      return <td key={`${d}-${slotMin}`} style={{ background: "rgba(196,164,106,0.08)", border: "1px solid var(--border)", height: 28 }} />;
+                      return null;
                     }
                     if (info.status === "busy" && info.item) {
                       const durationSlots = Math.round(
