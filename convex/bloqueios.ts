@@ -21,6 +21,50 @@ function formatDateUTC(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+// Verifica conflito de um novo bloqueio contra agendamentos E contra
+// outros bloqueios já existentes na mesma sala/data/horário.
+async function verificarConflitoBloqueio(
+  ctx: any,
+  salaId: any,
+  data: string,
+  horarioInicio: string,
+  horarioFim: string,
+  excludeId?: any
+) {
+  const inicio = parseTime(horarioInicio);
+  const fim = parseTime(horarioFim);
+
+  const agendamentos = await ctx.db
+    .query("agendamentos")
+    .withIndex("by_sala_data", (q: any) => q.eq("salaId", salaId).eq("data", data))
+    .collect();
+
+  for (const a of agendamentos) {
+    if (a.status === "cancelado") continue;
+    const as = parseTime(a.horarioInicio);
+    const ae = parseTime(a.horarioFim);
+    if (inicio < ae && fim > as) {
+      return { tipo: "agendamento" as const, item: a };
+    }
+  }
+
+  const bloqueios = await ctx.db
+    .query("bloqueiosSala")
+    .withIndex("by_sala_data", (q: any) => q.eq("salaId", salaId).eq("data", data))
+    .collect();
+
+  for (const b of bloqueios) {
+    if (excludeId && b._id === excludeId) continue;
+    const bs = parseTime(b.horarioInicio);
+    const be = parseTime(b.horarioFim);
+    if (inicio < be && fim > bs) {
+      return { tipo: "bloqueio" as const, item: b };
+    }
+  }
+
+  return null;
+}
+
 export const listar = query({
   args: {},
   handler: async (ctx) => {
@@ -49,23 +93,23 @@ export const criar = mutation({
       throw new ConvexError("Horário final deve ser após o inicial.");
     }
 
-    // Verifica conflito com agendamentos existentes
-    const agendamentos = await ctx.db
-      .query("agendamentos")
-      .withIndex("by_sala_data", (q) =>
-        q.eq("salaId", args.salaId).eq("data", args.data)
-      )
-      .collect();
-
-    for (const a of agendamentos) {
-      if (a.status === "cancelado") continue;
-      const as = parseTime(a.horarioInicio);
-      const ae = parseTime(a.horarioFim);
-      if (inicio < ae && fim > as) {
+    // Verifica conflito com agendamentos e com outros bloqueios existentes
+    const conflito = await verificarConflitoBloqueio(
+      ctx,
+      args.salaId,
+      args.data,
+      args.horarioInicio,
+      args.horarioFim
+    );
+    if (conflito) {
+      if (conflito.tipo === "agendamento") {
         throw new ConvexError(
-          `Já existe um agendamento neste horário: ${a.nomeAgendamento}`
+          `Já existe um agendamento neste horário: ${conflito.item.nomeAgendamento}`
         );
       }
+      throw new ConvexError(
+        `Já existe um bloqueio neste horário (${conflito.item.horarioInicio}–${conflito.item.horarioFim}): ${conflito.item.motivo || "sem motivo informado"}`
+      );
     }
 
     return await ctx.db.insert("bloqueiosSala", {
@@ -144,23 +188,13 @@ export const criarRecorrencia = mutation({
       if (args.diasDaSemana.includes(cursor.getUTCDay())) {
         const dataStr = formatDateUTC(cursor);
 
-        const agendamentos = await ctx.db
-          .query("agendamentos")
-          .withIndex("by_sala_data", (q) =>
-            q.eq("salaId", args.salaId).eq("data", dataStr)
-          )
-          .collect();
-
-        let conflito = false;
-        for (const a of agendamentos) {
-          if (a.status === "cancelado") continue;
-          const as = parseTime(a.horarioInicio);
-          const ae = parseTime(a.horarioFim);
-          if (inicio < ae && fim > as) {
-            conflito = true;
-            break;
-          }
-        }
+        const conflito = await verificarConflitoBloqueio(
+          ctx,
+          args.salaId,
+          dataStr,
+          args.horarioInicio,
+          args.horarioFim
+        );
 
         if (conflito) {
           pulados.push(dataStr);
