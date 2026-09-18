@@ -4,7 +4,11 @@ import { v } from "convex/values";
 // Gera um JWT para autenticação com a Google API via Service Account
 async function getGoogleAccessToken(): Promise<string> {
   const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL!;
-  const adminEmail = process.env.GOOGLE_ADMIN_EMAIL!;
+  // A API de Diretório exige que a conta impersonada tenha privilégio de
+  // administrador no Workspace — diferente da API de Calendar, que aceita
+  // qualquer conta. Por isso usa uma env var própria (GOOGLE_DIRECTORY_ADMIN_EMAIL),
+  // em vez de reaproveitar GOOGLE_ADMIN_EMAIL (usada pelo Calendar).
+  const adminEmail = process.env.GOOGLE_DIRECTORY_ADMIN_EMAIL || process.env.GOOGLE_ADMIN_EMAIL!;
   const privateKeyRaw = process.env.GOOGLE_PRIVATE_KEY!;
 
   // Normaliza a chave privada (substitui \n literais por quebras de linha reais)
@@ -86,39 +90,54 @@ export const buscarColaboradores = action({
   handler: async (_, args) => {
     try {
       const accessToken = await getGoogleAccessToken();
+      const directoryEmail = process.env.GOOGLE_DIRECTORY_ADMIN_EMAIL || process.env.GOOGLE_ADMIN_EMAIL!;
+      const domain = directoryEmail.split("@")[1];
 
-      const domain = process.env.GOOGLE_ADMIN_EMAIL!.split("@")[1];
-      const url = new URL("https://admin.googleapis.com/admin/directory/v1/users");
-      url.searchParams.set("domain", domain);
-      url.searchParams.set("maxResults", "200");
-      url.searchParams.set("orderBy", "givenName");
-      url.searchParams.set("fields", "users(primaryEmail,name/fullName,suspended)");
+      // Busca todas as páginas de usuários do domínio (a API do Google
+      // Admin SDK pagina em blocos de até 500; sem isso, domínios com
+      // mais de 200 pessoas perdiam quem viesse depois na ordem alfabética)
+      let allUsers: any[] = [];
+      let pageToken: string | undefined;
 
-      const response = await fetch(url.toString(), {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
+      do {
+        const url = new URL("https://admin.googleapis.com/admin/directory/v1/users");
+        url.searchParams.set("domain", domain);
+        url.searchParams.set("maxResults", "200");
+        url.searchParams.set("orderBy", "givenName");
+        url.searchParams.set("fields", "nextPageToken,users(primaryEmail,name/fullName,suspended)");
+        if (pageToken) url.searchParams.set("pageToken", pageToken);
 
-      if (!response.ok) {
-        const err = await response.text();
-        throw new Error(`Erro na API do Google: ${err}`);
-      }
+        const response = await fetch(url.toString(), {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
 
-      const data = await response.json();
-      const users = (data.users || [])
+        if (!response.ok) {
+          const err = await response.text();
+          throw new Error(`Erro na API do Google: ${err}`);
+        }
+
+        const data = await response.json();
+        allUsers = allUsers.concat(data.users || []);
+        pageToken = data.nextPageToken;
+      } while (pageToken);
+
+      const users = allUsers
         .filter((u: any) => !u.suspended)
         .map((u: any) => ({
           nome: u.name?.fullName || u.primaryEmail,
           email: u.primaryEmail,
         }));
 
-      // Filtra por query se fornecida
-      if (args.query && args.query.length > 0) {
-        const q = args.query.toLowerCase();
-        return users.filter(
-          (u: any) =>
-            u.nome.toLowerCase().includes(q) ||
-            u.email.toLowerCase().includes(q)
-        );
+      // Filtra por query se fornecida — cada palavra digitada precisa
+      // aparecer em algum lugar do nome ou e-mail (não exige que a frase
+      // inteira apareça como sequência exata, o que falhava por qualquer
+      // pequena diferença de espaçamento ou ordem das palavras).
+      if (args.query && args.query.trim().length > 0) {
+        const termos = args.query.toLowerCase().trim().split(/\s+/);
+        return users.filter((u: any) => {
+          const alvo = `${u.nome} ${u.email}`.toLowerCase();
+          return termos.every((termo) => alvo.includes(termo));
+        });
       }
 
       return users;
