@@ -423,8 +423,11 @@ export default function PublicPage() {
                       return null;
                     }
                     if (info.status === "busy" && info.item) {
-                      const durationSlots = Math.round(
-                        (parseTime(info.item.horarioFim) - parseTime(info.item.horarioInicio)) / SLOT_MINUTES
+                      const durationSlots = Math.max(
+                        1,
+                        Math.round(
+                          (parseTime(info.item.horarioFim) - parseTime(info.item.horarioInicio)) / SLOT_MINUTES
+                        )
                       );
                       return (
                         <td key={`${d}-${slotMin}`}
@@ -448,8 +451,11 @@ export default function PublicPage() {
                       );
                     }
                     if (info.status === "blocked" && info.item) {
-                      const durationSlots = Math.round(
-                        (parseTime(info.item.horarioFim) - parseTime(info.item.horarioInicio)) / SLOT_MINUTES
+                      const durationSlots = Math.max(
+                        1,
+                        Math.round(
+                          (parseTime(info.item.horarioFim) - parseTime(info.item.horarioInicio)) / SLOT_MINUTES
+                        )
                       );
                       return (
                         <td key={`${d}-${slotMin}`}
