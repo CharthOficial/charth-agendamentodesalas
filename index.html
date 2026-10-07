@@ -1,10 +1,33 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/convex.svg" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#C4A4A7" />
+
+    <!-- Instalação como app no iPhone/iPad (Safari) -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Salas Charth" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+
     <title>Agendamento de Salas | Portal Charth</title>
+
+    <script>
+      // Quando sai uma versão nova do app, recarrega sozinho uma vez
+      // (evita ficar preso numa versão antiga depois de um deploy).
+      if ("serviceWorker" in navigator) {
+        var jaTinhaSW = !!navigator.serviceWorker.controller;
+        var recarregou = false;
+        navigator.serviceWorker.addEventListener("controllerchange", function () {
+          if (!jaTinhaSW || recarregou) return;
+          recarregou = true;
+          window.location.reload();
+        });
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
