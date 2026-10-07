@@ -12,6 +12,16 @@ function cleanErrorMessage(e: any): string {
   return "Erro ao processar a solicitação.";
 }
 
+// Data de hoje no fuso local (YYYY-MM-DD). Não usa toISOString() porque ele
+// converte pra UTC e, no Brasil, depois das 21h devolveria o dia seguinte.
+function hojeLocal(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 export default function AgendamentosPanel() {
   const { user } = useAuth();
   const agendamentos = useQuery(api.agendamentos.listar) ?? [];
@@ -23,7 +33,7 @@ export default function AgendamentosPanel() {
   const criarEventoCalendar = useAction(api.googleCalendar.criarEvento);
   const cancelarEventoCalendar = useAction(api.googleCalendar.cancelarEvento);
 
-  const [filterDate, setFilterDate] = useState("");
+  const [filterDate, setFilterDate] = useState(hojeLocal());
   const [filterSala, setFilterSala] = useState("");
   const [filterLocal, setFilterLocal] = useState("");
   const [modalNew, setModalNew] = useState(false);
@@ -378,7 +388,7 @@ function BookingFormModal({
     responsavelNome: initial?.responsavelNome || "",
     responsavelSetor: initial?.responsavelSetor || "",
     salaId: initial?.salaId || "",
-    data: initial?.data || new Date().toISOString().slice(0, 10),
+    data: initial?.data || hojeLocal(),
     horarioInicio: initial?.horarioInicio || "",
     horarioFim: initial?.horarioFim || "",
     emailsParticipantes: initial?.emailsParticipantes || "",
